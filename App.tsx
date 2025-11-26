@@ -4,7 +4,7 @@ import SearchForm from './components/SearchForm';
 import ResultsView from './components/ResultsView';
 import { SearchParams, SafetyScoutResponse, LoadingState } from './types';
 import { analyzeSafety } from './services/geminiService';
-import { AlertCircle, History, LogOut, User as UserIcon, ShieldCheck, ArrowRight } from 'lucide-react';
+import { AlertCircle, History, LogOut, User as UserIcon, ShieldCheck, ArrowRight, Repeat } from 'lucide-react';
 
 import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebaseConfig";
@@ -25,6 +25,9 @@ const App: React.FC = () => {
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  
+  // <--- NEW STATE for re-using searches
+  const [reuseData, setReuseData] = useState<SearchParams | undefined>(undefined);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -92,6 +95,13 @@ const App: React.FC = () => {
     }
   };
 
+  // <--- NEW FUNCTION to handle reusing a search
+  const handleReuseSearch = (criteria: SearchParams) => {
+    setReuseData(criteria); // Set the data to populate the form
+    setView('home'); // Switch back to the search view
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
+  };
+
   const handleSearch = async (params: SearchParams) => {
     setLoadingState({ status: 'loading' });
     setResults(null);
@@ -117,7 +127,7 @@ const App: React.FC = () => {
     }
   };
 
-  // --- ANIMATED BACKGROUND COMPONENT ---
+  // --- ANIMATED BACKGROUND ---
   const AnimatedBackground = () => (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50">
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
@@ -130,7 +140,7 @@ const App: React.FC = () => {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-emerald-600 font-medium">Loading SafeHaven...</div>;
   }
 
-  // --- LANDING PAGE (Not Logged In) ---
+  // --- LANDING PAGE ---
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900">
@@ -159,7 +169,7 @@ const App: React.FC = () => {
     );
   }
 
-  // --- MAIN APP (Logged In) ---
+  // --- MAIN APP ---
   return (
     <div className="min-h-screen pb-12 flex flex-col relative font-sans text-slate-900">
       <AnimatedBackground />
@@ -223,7 +233,7 @@ const App: React.FC = () => {
             ) : (
               <div className="grid gap-5">
                 {historyList.map((item) => (
-                  <div key={item.id} className="glass-card p-6 rounded-2xl">
+                  <div key={item.id} className="glass-card p-6 rounded-2xl relative group">
                     <div className="flex justify-between items-start mb-3">
                       <h3 className="font-bold text-xl text-slate-900">
                         {item.searchCriteria.city}, {item.searchCriteria.state}
@@ -236,7 +246,16 @@ const App: React.FC = () => {
                       <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1 rounded-full font-medium">Budget: ${item.searchCriteria.maxPrice}</span>
                       <span className="bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1 rounded-full font-medium">{item.searchCriteria.bedrooms} Beds</span>
                     </div>
-                    <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed">{item.aiSummary}</p>
+                    <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed mb-4">{item.aiSummary}</p>
+                    
+                    {/* <--- NEW: REUSE BUTTON --- */}
+                    <button 
+                      onClick={() => handleReuseSearch(item.searchCriteria)}
+                      className="w-full mt-2 py-2 px-4 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-200 hover:border-emerald-200"
+                    >
+                      <Repeat className="w-4 h-4" />
+                      Reuse & Edit Search
+                    </button>
                   </div>
                 ))}
               </div>
@@ -248,7 +267,12 @@ const App: React.FC = () => {
           <>
             <Hero />
             <div className="container mx-auto px-4 relative z-20">
-              <SearchForm onSearch={handleSearch} isLoading={loadingState.status === 'loading'} />
+              {/* Pass the reuseData as initialValues to the form */}
+              <SearchForm 
+                onSearch={handleSearch} 
+                isLoading={loadingState.status === 'loading'} 
+                initialValues={reuseData} 
+              />
               
               {loadingState.status === 'error' && (
                 <div className="max-w-4xl mx-auto mt-8 p-4 bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-xl flex items-center gap-3 text-white animate-in fade-in slide-in-from-bottom-2 shadow-lg">
