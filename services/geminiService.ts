@@ -49,6 +49,7 @@ const scoutSchema = {
 };
 
 export const analyzeSafety = async (params: SearchParams): Promise<SafetyScoutResponse> => {
+  // Use the specific VITE_ env variable for the web build
   const apiKey = import.meta.env.VITE_API_KEY; 
   
   if (!apiKey) {
@@ -58,8 +59,8 @@ export const analyzeSafety = async (params: SearchParams): Promise<SafetyScoutRe
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const model = genAI.getGenerativeModel({
-    // UPDATED: Using the specific version to prevent 404 errors
-    model: "gemini-1.5-flash-001",
+    // UPDATED: Using 'gemini-2.5-flash' because 1.5-flash is retired/deprecated
+    model: "gemini-2.5-flash",
     systemInstruction: "You are a helpful, reassuring, and knowledgeable real estate safety expert. Prioritize safety and family-friendliness. Be honest about budget constraints if safety comes at a premium.",
   });
 
