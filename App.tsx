@@ -9,7 +9,7 @@ import { AlertCircle, History, LogOut, LogIn, User as UserIcon } from 'lucide-re
 // Firebase Imports
 import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebaseConfig";
-import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
+import { collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, Timestamp, setDoc, doc } from "firebase/firestore";
 
 // Define a type for our History Items
 interface HistoryItem {
@@ -45,7 +45,17 @@ const App: React.FC = () => {
   // 2. Auth Functions
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      // Create/Update the 'users' collection in Firestore immediately
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        lastLogin: serverTimestamp()
+      }, { merge: true }); // merge ensures we update lastLogin without deleting old data
+
     } catch (error) {
       console.error("Login failed", error);
     }
