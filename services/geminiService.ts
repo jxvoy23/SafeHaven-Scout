@@ -1,44 +1,45 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { SearchParams, SafetyScoutResponse } from "../types";
 
 // Define the response schema for strict JSON output
-const scoutSchema: Schema = {
-  type: Type.OBJECT,
+// Note: SchemaType is used in the web SDK instead of Type
+const scoutSchema = {
+  type: SchemaType.OBJECT,
   properties: {
     summary: {
-      type: Type.STRING,
+      type: SchemaType.STRING,
       description: "A friendly, reassuring summary of why these areas were chosen based on safety and budget.",
     },
     search_criteria: {
-      type: Type.OBJECT,
+      type: SchemaType.OBJECT,
       properties: {
-        city: { type: Type.STRING },
-        state: { type: Type.STRING },
-        price_max: { type: Type.NUMBER },
-        bedrooms_min: { type: Type.NUMBER },
+        city: { type: SchemaType.STRING },
+        state: { type: SchemaType.STRING },
+        price_max: { type: SchemaType.NUMBER },
+        bedrooms_min: { type: SchemaType.NUMBER },
         recommended_zip_codes: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
           description: "List of recommended zip codes.",
         },
       },
       required: ["city", "state", "price_max", "bedrooms_min", "recommended_zip_codes"],
     },
     safety_tips: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
       description: "General safety advice for renting in this city.",
     },
     neighborhoods: {
-      type: Type.ARRAY,
+      type: SchemaType.ARRAY,
       description: "Detailed insights for the recommended areas.",
       items: {
-        type: Type.OBJECT,
+        type: SchemaType.OBJECT,
         properties: {
-          name: { type: Type.STRING, description: "Name of the neighborhood or area" },
-          zip_code: { type: Type.STRING },
-          insight: { type: Type.STRING, description: "Specific safety and lifestyle insight for this area" },
-          safety_score: { type: Type.INTEGER, description: "A hypothetical safety score from 1-100 where 100 is safest" },
+          name: { type: SchemaType.STRING, description: "Name of the neighborhood or area" },
+          zip_code: { type: SchemaType.STRING },
+          insight: { type: SchemaType.STRING, description: "Specific safety and lifestyle insight for this area" },
+          safety_score: { type: SchemaType.INTEGER, description: "A hypothetical safety score from 1-100 where 100 is safest" },
         },
         required: ["name", "zip_code", "insight", "safety_score"],
       },
@@ -48,13 +49,18 @@ const scoutSchema: Schema = {
 };
 
 export const analyzeSafety = async (params: SearchParams): Promise<SafetyScoutResponse> => {
-  const apiKey = import.meta.env.VITE_API_KEY || process.env.API_KEY; 
+  const apiKey = import.meta.env.VITE_API_KEY; 
   
   if (!apiKey) {
     throw new Error("API Key is missing. Check your .env file.");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: "You are a helpful, reassuring, and knowledgeable real estate safety expert. Prioritize safety and family-friendliness. Be honest about budget constraints if safety comes at a premium.",
+  });
 
   const prompt = `
     Act as a Real Estate Safety Scout. 
@@ -70,23 +76,20 @@ export const analyzeSafety = async (params: SearchParams): Promise<SafetyScoutRe
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      // 2. UPDATE: Use a valid model name
-      model: 'gemini-1.5-flash', 
-      contents: prompt,
-      config: {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: scoutSchema,
-        systemInstruction: "You are a helpful, reassuring, and knowledgeable real estate safety expert...",
       },
     });
 
-    const text = response.text;
-    if (!text) {
+    const responseText = result.response.text();
+    if (!responseText) {
       throw new Error("No response generated from AI.");
     }
 
-    return JSON.parse(text) as SafetyScoutResponse;
+    return JSON.parse(responseText) as SafetyScoutResponse;
   } catch (error) {
     console.error("Gemini API Error:", error);
     throw error;
