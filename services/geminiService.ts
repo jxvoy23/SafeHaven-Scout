@@ -58,7 +58,8 @@ export const analyzeSafety = async (params: SearchParams): Promise<SafetyScoutRe
   const genAI = new GoogleGenerativeAI(apiKey);
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    // UPDATED: Using the specific version to prevent 404 errors
+    model: "gemini-1.5-flash-001",
     systemInstruction: "You are a helpful, reassuring, and knowledgeable real estate safety expert. Prioritize safety and family-friendliness. Be honest about budget constraints if safety comes at a premium.",
   });
 
