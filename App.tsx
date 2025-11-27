@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'; // <--- Added useRef
+import React, { useState, useEffect, useRef } from 'react';
 import Hero from './components/Hero';
 import SearchForm from './components/SearchForm';
 import ResultsView from './components/ResultsView';
 import { SearchParams, SafetyScoutResponse, LoadingState } from './types';
 import { analyzeSafety } from './services/geminiService';
-import { AlertCircle, History, LogOut, User as UserIcon, ShieldCheck, ArrowRight, Repeat } from 'lucide-react';
+import { AlertCircle, History, LogOut, User as UserIcon, ShieldCheck, ArrowRight, Repeat, ExternalLink } from 'lucide-react'; // <--- Added ExternalLink
 
 import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebaseConfig";
@@ -26,11 +26,20 @@ const App: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [reuseData, setReuseData] = useState<SearchParams | undefined>(undefined);
+  
+  // <--- NEW: State for In-App Browser Detection
+  const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
-  // <--- NEW: Reference to the results section
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // 1. Detect Instagram/Facebook Browser
+    const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
+    if ((ua.indexOf("Instagram") > -1) || (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1)) {
+      setIsInAppBrowser(true);
+    }
+
+    // 2. Listen for Auth
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthChecking(false);
@@ -110,7 +119,6 @@ const App: React.FC = () => {
       setResults(data);
       setLoadingState({ status: 'success' });
 
-      // <--- NEW: Scroll to results after data loads
       setTimeout(() => {
         resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
@@ -139,6 +147,31 @@ const App: React.FC = () => {
       <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
     </div>
   );
+
+  // --- IN-APP BROWSER WARNING ---
+  if (isInAppBrowser) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-6 text-center text-white">
+        <ShieldCheck className="w-16 h-16 text-emerald-500 mb-6" />
+        <h2 className="text-2xl font-bold mb-4">Open in Browser</h2>
+        <p className="text-slate-300 mb-8 max-w-md">
+          Instagram's built-in browser doesn't support secure Google Sign-In. 
+          Please open this link in Safari or Chrome.
+        </p>
+        <div className="bg-white/10 p-4 rounded-xl border border-white/20 flex flex-col gap-2 items-center text-sm">
+          <div className="flex items-center gap-2">
+            <span className="bg-slate-800 p-1 rounded">•••</span> 
+            <span>Tap the 3 dots at the top right</span>
+          </div>
+          <ArrowRight className="w-4 h-4 text-slate-400 rotate-90" />
+          <div className="flex items-center gap-2 font-bold text-emerald-400">
+            <ExternalLink className="w-4 h-4" />
+            Open in Browser
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (authChecking) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-emerald-600 font-medium">Loading SafeHaven...</div>;
@@ -285,7 +318,6 @@ const App: React.FC = () => {
               )}
 
               {loadingState.status === 'success' && results && (
-                /* <--- WRAPPER ADDED FOR SCROLL REF */
                 <div ref={resultsRef}> 
                   <ResultsView data={results} />
                 </div>
