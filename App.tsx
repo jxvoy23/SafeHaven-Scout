@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // <--- Added useRef
 import Hero from './components/Hero';
 import SearchForm from './components/SearchForm';
 import ResultsView from './components/ResultsView';
@@ -25,9 +25,10 @@ const App: React.FC = () => {
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
-  
-  // <--- NEW STATE for re-using searches
   const [reuseData, setReuseData] = useState<SearchParams | undefined>(undefined);
+
+  // <--- NEW: Reference to the results section
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -95,11 +96,10 @@ const App: React.FC = () => {
     }
   };
 
-  // <--- NEW FUNCTION to handle reusing a search
   const handleReuseSearch = (criteria: SearchParams) => {
-    setReuseData(criteria); // Set the data to populate the form
-    setView('home'); // Switch back to the search view
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
+    setReuseData(criteria);
+    setView('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSearch = async (params: SearchParams) => {
@@ -109,6 +109,11 @@ const App: React.FC = () => {
       const data = await analyzeSafety(params);
       setResults(data);
       setLoadingState({ status: 'success' });
+
+      // <--- NEW: Scroll to results after data loads
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
 
       if (user) {
         await addDoc(collection(db, "sessions"), {
@@ -127,7 +132,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- ANIMATED BACKGROUND ---
   const AnimatedBackground = () => (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50">
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
@@ -140,7 +144,6 @@ const App: React.FC = () => {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-emerald-600 font-medium">Loading SafeHaven...</div>;
   }
 
-  // --- LANDING PAGE ---
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900">
@@ -169,7 +172,6 @@ const App: React.FC = () => {
     );
   }
 
-  // --- MAIN APP ---
   return (
     <div className="min-h-screen pb-12 flex flex-col relative font-sans text-slate-900">
       <AnimatedBackground />
@@ -248,7 +250,6 @@ const App: React.FC = () => {
                     </div>
                     <p className="text-slate-600 text-sm line-clamp-2 leading-relaxed mb-4">{item.aiSummary}</p>
                     
-                    {/* <--- NEW: REUSE BUTTON --- */}
                     <button 
                       onClick={() => handleReuseSearch(item.searchCriteria)}
                       className="w-full mt-2 py-2 px-4 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-200 hover:border-emerald-200"
@@ -267,7 +268,6 @@ const App: React.FC = () => {
           <>
             <Hero />
             <div className="container mx-auto px-4 relative z-20">
-              {/* Pass the reuseData as initialValues to the form */}
               <SearchForm 
                 onSearch={handleSearch} 
                 isLoading={loadingState.status === 'loading'} 
@@ -285,7 +285,10 @@ const App: React.FC = () => {
               )}
 
               {loadingState.status === 'success' && results && (
-                <ResultsView data={results} />
+                /* <--- WRAPPER ADDED FOR SCROLL REF */
+                <div ref={resultsRef}> 
+                  <ResultsView data={results} />
+                </div>
               )}
 
               {loadingState.status === 'idle' && (
