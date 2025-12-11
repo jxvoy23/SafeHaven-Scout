@@ -13,6 +13,15 @@ export interface NeighborhoodInsight {
   safety_score: number; // 1-100 scale estimate
 }
 
+// --- NEW INTERFACES ---
+export interface WeatherData {
+  temperature: number;
+  conditionCode: number;
+  windSpeed: number;
+  isDay: number;
+}
+// ----------------------
+
 export interface SafetyScoutResponse {
   summary: string;
   search_criteria: {
@@ -23,7 +32,6 @@ export interface SafetyScoutResponse {
     recommended_zip_codes: string[];
   };
   safety_tips: string[];
-  // Extended the schema slightly to support the UI requirement of showing insights per area
   neighborhoods: NeighborhoodInsight[];
 }
 

@@ -1,29 +1,61 @@
 import React from 'react';
-import { SafetyScoutResponse } from '../types';
-import { Shield, CheckCircle, Info, MapPin } from 'lucide-react';
+import { SafetyScoutResponse, WeatherData } from '../types';
+import { Shield, CheckCircle, Info, MapPin, CloudSun, Wind, Thermometer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface ResultsViewProps {
   data: SafetyScoutResponse;
+  weather: WeatherData | null;
 }
 
-const ResultsView: React.FC<ResultsViewProps> = ({ data }) => {
-  // Prepare data for the safety chart
+const ResultsView: React.FC<ResultsViewProps> = ({ data, weather }) => {
   const chartData = data.neighborhoods.map(n => ({
-    name: n.name.split(' ')[0], // Shorten name for x-axis
+    name: n.name.split(' ')[0], 
     full_name: n.name,
     score: n.safety_score,
   }));
+
+  // Simple mapping for weather codes
+  const getWeatherDesc = (code: number) => {
+    if (code === 0) return "Clear Sky";
+    if (code >= 1 && code <= 3) return "Partly Cloudy";
+    if (code >= 45 && code <= 48) return "Foggy";
+    if (code >= 51 && code <= 67) return "Rainy";
+    if (code >= 71 && code <= 77) return "Snowy";
+    if (code >= 95) return "Thunderstorm";
+    return "Variable";
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 animate-in fade-in duration-700 slide-in-from-bottom-4">
       
       {/* Summary Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100 flex items-center gap-3">
-          <Shield className="text-emerald-600 w-6 h-6" />
-          <h2 className="text-xl font-bold text-emerald-900">Scout Summary</h2>
+        <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="text-emerald-600 w-6 h-6" />
+            <h2 className="text-xl font-bold text-emerald-900">Scout Summary</h2>
+          </div>
+          
+          {/* WEATHER WIDGET (External API Integration) */}
+          {weather && (
+            <div className="flex items-center gap-4 text-emerald-800 bg-white/60 px-4 py-1.5 rounded-full border border-emerald-100 shadow-sm text-sm">
+               <div className="flex items-center gap-1.5" title="Current Temperature">
+                 <Thermometer className="w-4 h-4 text-orange-500" />
+                 <span className="font-bold">{weather.temperature}°F</span>
+               </div>
+               <div className="flex items-center gap-1.5" title="Conditions">
+                 <CloudSun className="w-4 h-4 text-blue-500" />
+                 <span>{getWeatherDesc(weather.conditionCode)}</span>
+               </div>
+               <div className="hidden sm:flex items-center gap-1.5" title="Wind Speed">
+                 <Wind className="w-4 h-4 text-slate-400" />
+                 <span>{weather.windSpeed} mph</span>
+               </div>
+            </div>
+          )}
         </div>
+        
         <div className="p-6">
           <p className="text-slate-700 leading-relaxed text-lg">{data.summary}</p>
           <div className="mt-6 flex flex-wrap gap-3">

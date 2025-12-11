@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import Hero from './components/Hero';
 import SearchForm from './components/SearchForm';
 import ResultsView from './components/ResultsView';
-import { SearchParams, SafetyScoutResponse, LoadingState } from './types';
+import { SearchParams, SafetyScoutResponse, LoadingState, WeatherData } from './types'; // Added WeatherData
 import { analyzeSafety } from './services/geminiService';
-import { AlertCircle, History, LogOut, User as UserIcon, ShieldCheck, ArrowRight, Repeat, ExternalLink } from 'lucide-react'; // <--- Added ExternalLink
+import { getWeather } from './services/weatherService'; // Import the new service
+import { AlertCircle, History, LogOut, User as UserIcon, ShieldCheck, ArrowRight, Repeat, ExternalLink } from 'lucide-react';
 
 import { signInWithPopup, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, googleProvider, db } from "./firebaseConfig";
@@ -20,6 +21,7 @@ interface HistoryItem {
 const App: React.FC = () => {
   const [loadingState, setLoadingState] = useState<LoadingState>({ status: 'idle' });
   const [results, setResults] = useState<SafetyScoutResponse | null>(null);
+  const [weather, setWeather] = useState<WeatherData | null>(null); // New State for Weather
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<'home' | 'history'>('home');
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
@@ -27,19 +29,16 @@ const App: React.FC = () => {
   const [authChecking, setAuthChecking] = useState(true);
   const [reuseData, setReuseData] = useState<SearchParams | undefined>(undefined);
   
-  // <--- NEW: State for In-App Browser Detection
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. Detect Instagram/Facebook Browser
     const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
     if ((ua.indexOf("Instagram") > -1) || (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1)) {
       setIsInAppBrowser(true);
     }
 
-    // 2. Listen for Auth
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthChecking(false);
@@ -114,9 +113,17 @@ const App: React.FC = () => {
   const handleSearch = async (params: SearchParams) => {
     setLoadingState({ status: 'loading' });
     setResults(null);
+    setWeather(null); // Reset weather
+    
     try {
-      const data = await analyzeSafety(params);
-      setResults(data);
+      // Execute both API calls in parallel
+      const [aiData, weatherData] = await Promise.all([
+        analyzeSafety(params),
+        getWeather(params.city)
+      ]);
+
+      setResults(aiData);
+      setWeather(weatherData); // Store weather data
       setLoadingState({ status: 'success' });
 
       setTimeout(() => {
@@ -128,7 +135,7 @@ const App: React.FC = () => {
           userId: user.uid,
           userEmail: user.email,
           searchCriteria: params,
-          aiSummary: data.summary,
+          aiSummary: aiData.summary,
           timestamp: serverTimestamp()
         });
       }
@@ -148,7 +155,6 @@ const App: React.FC = () => {
     </div>
   );
 
-  // --- IN-APP BROWSER WARNING ---
   if (isInAppBrowser) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-6 text-center text-white">
@@ -210,13 +216,17 @@ const App: React.FC = () => {
       <AnimatedBackground />
       
       <header className="bg-white/70 backdrop-blur-md border-b border-white/40 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between relative">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setView('home')}>
              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg p-1.5 shadow-md group-hover:shadow-lg transition-shadow">
                <UserIcon className="w-5 h-5 text-white" /> 
              </div>
              <span className="font-bold text-slate-800 text-lg hidden sm:block tracking-tight">SafeHaven Scout</span>
           </div>
+
+          <span className="hidden md:block text-slate-600 font-medium absolute left-1/2 -translate-x-1/2">
+            Welcome {user.displayName}
+          </span>
 
           <div className="flex items-center gap-4">
             <button 
@@ -319,7 +329,7 @@ const App: React.FC = () => {
 
               {loadingState.status === 'success' && results && (
                 <div ref={resultsRef}> 
-                  <ResultsView data={results} />
+                  <ResultsView data={results} weather={weather} /> 
                 </div>
               )}
 
