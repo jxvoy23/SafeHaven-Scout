@@ -53,7 +53,7 @@ src/
 └── main.tsx              # Entry point
 ```
 
-### Application Logic Flow
+## Application Logic Flow
 Authentication State: App.tsx uses a useEffect listener on onAuthStateChanged. If a user is not authenticated, the "Landing Gate" is shown. Upon login, the view creates a document in the Firestore users collection.
 
 The AI Pipeline (geminiService.ts):
@@ -70,7 +70,7 @@ Successful searches are automatically written to the sessions collection in Clou
 
 Security Rules enforce that users can only read/write to documents tagged with their specific uid.
 
-### 🌐 Website Structure & User Flow
+## 🌐 Website Structure & User Flow
 The application logic is state-driven rather than route-driven, providing a seamless single-page application (SPA) experience.
 
 1. Landing Page (Unauthenticated)
@@ -99,7 +99,7 @@ Persistence: Fetches the user's past sessions from Firestore, ordered by timesta
 
 Re-Use Feature: Users can click "Reuse & Edit Search" on any history item. This creates a feedback loop, populating the Search Form with historical data for refinement.
 
-### 🛠️ Installation & Setup
+## 🛠️ Installation & Setup
 To run this project locally:
 
 Clone the repository:
